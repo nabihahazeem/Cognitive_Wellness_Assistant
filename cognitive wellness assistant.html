@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognitive Wellness Assistant</title>
+    <!-- Load Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Use Inter font -->
+    <style>
+        /* Professional Teal/Cyan Theme */
+        :root {
+            --color-primary: #008080; /* Teal/Cyan */
+            --color-background-bot: #e0f2f1; /* Light Teal */
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdfa; }
+        .chat-container { height: 80vh; max-height: 700px; }
+        .bg-primary { background-color: var(--color-primary); }
+        .text-primary-800 { color: #0e7490; }
+        .bg-primary-100 { background-color: var(--color-background-bot); }
+        .hover-primary:hover { background-color: #006666; }
+        .focus-ring-primary:focus { --tw-ring-color: var(--color-primary); }
+    </style>
+</head>
+<body class="p-4 sm:p-6 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col chat-container">
+        <!-- Header -->
+        <header class="p-4 bg-primary text-white shadow-md rounded-t-xl">
+            <h1 class="text-xl font-bold">Cognitive Wellness Assistant</h1>
+            <!--<p class="text-sm opacity-80">Structured, evidence-based self-management support and assessment.</p>-->
+        </header>
+
+        <!-- Chat History -->
+        <main id="chat-history" class="flex-grow p-4 overflow-y-auto space-y-4 bg-gray-50">
+            <!-- Initial welcome message from the bot -->
+            <div class="flex justify-start">
+                <div class="bg-primary-100 text-gray-800 p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl max-w-[80%] shadow-md">
+                    <p>Good day. I am the Cognitive Wellness Assistant. I am prepared to begin a structured, flexible assessment of your behavioral wellness. To begin, please state your name, if you're comfortable sharing it.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Input Area -->
+        <footer class="p-4 border-t bg-white">
+            <div class="flex space-x-3">
+                <input type="text" id="user-input" placeholder="Enter your response."
+                       class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition focus-ring-primary">
+                <button id="send-button"
+                        class="bg-primary text-white p-3 rounded-lg font-semibold hover-primary transition duration-200 shadow-lg disabled:bg-gray-400">
+                    Submit
+                </button>
+            </div>
+            <div id="loading-indicator" class="text-sm text-center text-gray-500 mt-2 hidden">
+                ...Processing...
+            </div>
+        </footer>
+    </div>
+
+    <script type="module">
+        // --- CSV Data Setup ---
+        let csvData = [];
+        
+        // Load your mental.csv data
+        Papa.parse("mental.csv", {
+            download: true,
+            header: true,
+            dynamicTyping: true,
+            complete: function(results) {
+                csvData = results.data;
+                console.log("CSV data loaded:", csvData);
+                // Optional: Show a subtle indication that data is ready
+                addMessage("Dataset loaded and ready for analysis.", 'bot');
+            },
+            error: function(error) {
+                console.error("Error loading CSV:", error);
+                addMessage("Note: Using demo dataset for this session.", 'bot');
+                // Fallback demo data if CSV fails to load
+                csvData = [
+                    { User_ID: 1, Gender: "Male", Age: 28, Daily_Sleep_Hours: 6.5, Stress_Level: 7 },
+                    { User_ID: 2, Gender: "Female", Age: 22, Daily_Sleep_Hours: 7, Stress_Level: 6 },
+                    { User_ID: 3, Gender: "Female", Age: 45, Daily_Sleep_Hours: 6, Stress_Level: 4 },
+                    { User_ID: 4, Gender: "Male", Age: 35, Daily_Sleep_Hours: 6, Stress_Level: 5 },
+                    { User_ID: 5, Gender: "Male", Age: 19, Daily_Sleep_Hours: 8, Stress_Level: 7 }
+                ];
+            }
+        });
+
+        // --- Data Analysis Functions ---
+        
+        function analyzeSleepPatterns(hours) {
+            const similarUsers = csvData.filter(user => 
+                Math.abs(user.Daily_Sleep_Hours - hours) <= 1
+            );
+            
+            if (similarUsers.length === 0) return null;
+            
+            const avgStress = similarUsers.reduce((sum, user) => sum + user.Stress_Level, 0) / similarUsers.length;
+            const commonAge = similarUsers.reduce((sum, user) => sum + user.Age, 0) / similarUsers.length;
+            
+            return {
+                count: similarUsers.length,
+                avgStress: avgStress.toFixed(1),
+                commonAge: Math.round(commonAge),
+                recommendation: hours < 6 ? "Consider improving sleep duration for better mental health." : 
+                              hours > 8 ? "Monitor for oversleeping patterns." : 
+                              "Your sleep duration aligns with healthy patterns."
+            };
+        }
+        
+        function analyzeStressPatterns(level) {
+            const similarUsers = csvData.filter(user => 
+                Math.abs(user.Stress_Level - level) <= 1
+            );
+            
+            if (similarUsers.length === 0) return null;
+            
+            const avgSleep = similarUsers.reduce((sum, user) => sum + user.Daily_Sleep_Hours, 0) / similarUsers.length;
+            const ageGroups = {};
+            similarUsers.forEach(user => {
+                const ageGroup = Math.floor(user.Age / 10) * 10;
+                ageGroups[ageGroup] = (ageGroups[ageGroup] || 0) + 1;
+            });
+            
+            const mostCommonAgeGroup = Object.keys(ageGroups).reduce((a, b) => ageGroups[a] > ageGroups[b] ? a : b);
+            
+            return {
+                count: similarUsers.length,
+                avgSleep: avgSleep.toFixed(1),
+                commonAgeGroup: ${mostCommonAgeGroup}s,
+                correlation: avgSleep < 6.5 ? "High stress often correlates with poor sleep." : 
+                           "Consider stress management techniques."
+            };
+        }
+        
+        function getDataInsights() {
+            const totalUsers = csvData.length;
+            const avgSleep = csvData.reduce((sum, user) => sum + user.Daily_Sleep_Hours, 0) / totalUsers;
+            const avgStress = csvData.reduce((sum, user) => sum + user.Stress_Level, 0) / totalUsers;
+            
+            return {
+                totalUsers,
+                avgSleep: avgSleep.toFixed(1),
+                avgStress: avgStress.toFixed(1),
+                sleepQuality: avgSleep >= 7 ? "good" : "needs improvement",
+                stressLevel: avgStress <= 5 ? "moderate" : "elevated"
+            };
+        }
+
+        // --- Smart Response Generator ---
+        function generateDataDrivenResponse(userMessage) {
+            const message = userMessage.toLowerCase();
+            
+            // Extract numbers from message
+            const numbers = userMessage.match(/\d+/g);
+            const sleepNumber = message.includes('sleep') && numbers ? parseFloat(numbers[0]) : null;
+            const stressNumber = (message.includes('stress') || message.includes('anxious')) && numbers ? parseInt(numbers[0]) : null;
+            
+            // Sleep analysis
+            if (sleepNumber !== null && sleepNumber >= 3 && sleepNumber <= 12) {
+                const analysis = analyzeSleepPatterns(sleepNumber);
+                if (analysis) {
+                    return Based on our dataset of ${getDataInsights().totalUsers} users:\n\n +
+                           I found ${analysis.count} users with similar sleep patterns (${sleepNumber} hours).\n +
+                           • Their average stress level: ${analysis.avgStress}/10\n +
+                           • Common age group: ${analysis.commonAge}s\n +
+                           • Recommendation: ${analysis.recommendation};
+                }
+            }
+            
+            // Stress analysis
+            if (stressNumber !== null && stressNumber >= 1 && stressNumber <= 10) {
+                const analysis = analyzeStressPatterns(stressNumber);
+                if (analysis) {
+                    return Based on our mental health dataset:\n\n +
+                           I found ${analysis.count} users with similar stress levels (${stressNumber}/10).\n +
+                           • Their average sleep: ${analysis.avgSleep} hours\n +
+                           • Most common in age group: ${analysis.commonAgeGroup}\n +
+                           • Insight: ${analysis.correlation};
+                }
+            }
+            
+            // General data insights
+            if (message.includes('data') || message.includes('dataset') || message.includes('analysis')) {
+                const insights = getDataInsights();
+                return Our mental health dataset analysis shows:\n\n +
+                       • Total users analyzed: ${insights.totalUsers}\n +
+                       • Average sleep duration: ${insights.avgSleep} hours\n +
+                       • Average stress level: ${insights.avgStress}/10\n +
+                       • Overall sleep quality: ${insights.sleepQuality}\n +
+                       • General stress levels: ${insights.stressLevel};
+            }
+            
+            // Fallback - use data to inform general responses
+            const insights = getDataInsights();
+            if (message.includes('sleep')) {
+                return Our data shows most users average ${insights.avgSleep} hours of sleep. How many hours do you typically sleep?;
+            }
+            
+            if (message.includes('stress') || message.includes('anxious')) {
+                return Based on our dataset, average stress levels are ${insights.avgStress}/10. What's your current stress level on a scale of 1-10?;
+            }
+            
+            return null; // Will use API as fallback
+        }
+
+        // --- API & Chat Setup ---
+        const apiKey = ""; 
+        const apiUrl = https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey};
+        
+        const chatHistoryElement = document.getElementById('chat-history');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        let conversationHistory = [];
+        
+        // Updated System Prompt to mention data integration
+        const SYSTEM_PROMPT = {
+            parts: [{
+                text: "You are a professional, objective, evidence-based AI named 'Cognitive Wellness Assistant.' Your goal is to conduct a flexible, multi-stage assessment of the user's behavioral wellness and lifestyle factors. You have access to a mental health dataset that you can reference for comparisons and insights." +
+                      
+                      "STAGE 1: GREETING AND OPTIONAL DEMOGRAPHICS. You have already asked for the user's name. After receiving the name, proceed to ask for Age and Gender, explicitly stating that these are optional and will only be used for contextualizing the assessment. Wait for the user's reply to Age/Gender before proceeding." +
+                      
+                      "STAGE 2: LIFESTYLE ASSESSMENT. Once the initial optional data is provided (or skipped), begin the flexible questioning phase. Start with a broad topic like 'Stress Level' (on a scale of 1-10) or 'Sleep Quality' (hours). Use the available dataset to provide comparative insights when users share numerical data about sleep or stress." +
+                      
+                      "STAGE 3: SUMMARY AND PROTOCOL RECOMMENDATION. When you have enough detail, summarize the key lifestyle areas identified and offer one structured, evidence-based self-management protocol." +
+                      
+                      "SAFETY PROTOCOL (Highest Priority): If the user expresses any intent of self-harm, suicide, or crisis, immediately stop and provide emergency resources."
+            }]
+        };
+
+        // --- UI Functions ---
+        function cleanBotText(text) {
+            let cleanedText = text.replace(/^[#]+\s?/gm, '');
+            cleanedText = cleanedText.replace(/\\/g, '');
+            return cleanedText.trim();
+        }
+
+        function addMessage(text, sender) {
+            let displayedText = text;
+            if (sender === 'bot') {
+                displayedText = cleanBotText(text);
+            }
+            
+            const isUser = sender === 'user';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = flex ${isUser ? 'justify-end' : 'justify-start'};
+
+            const bubbleClass = isUser 
+                ? 'bg-primary text-white rounded-tl-xl rounded-bl-xl rounded-br-xl'
+                : 'bg-gray-200 text-gray-800 rounded-tr-xl rounded-br-xl rounded-bl-xl';
+
+            messageDiv.innerHTML = `
+                <div class="${bubbleClass} p-3 max-w-[80%] shadow-md">
+                    <p>${displayedText.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+            chatHistoryElement.appendChild(messageDiv);
+            chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
+        }
+
+        function showLoading(show) {
+            loadingIndicator.classList.toggle('hidden', !show);
+            sendButton.disabled = show;
+            userInput.disabled = show;
+            sendButton.textContent = show ? 'Processing...' : 'Submit';
+        }
+
+        // --- Enhanced Message Handling ---
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            userInput.value = '';
+            showLoading(true);
+
+            conversationHistory.push({ role: "user", parts: [{ text: message }] });
+
+            // FIRST: Try to use CSV data for response
+            const dataResponse = generateDataDrivenResponse(message);
+            
+            if (dataResponse) {
+                // Use CSV-based response
+                setTimeout(() => {
+                    addMessage(dataResponse, 'bot');
+                    conversationHistory.push({ role: "model", parts: [{ text: dataResponse }] });
+                    showLoading(false);
+                }, 1000); // Simulate processing time
+                return;
+            }
+
+            // FALLBACK: Use API for other responses
+            const payload = {
+                contents: conversationHistory,
+                systemInstruction: SYSTEM_PROMPT,
+            };
+            
+            const maxRetries = 3;
+            let response = null;
+            let lastError = null;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        response = await res.json();
+                        break;
+                    } else {
+                        throw new Error(API return--status ${res.status});
+                    }
+                } catch (error) {
+                    lastError = error;
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+            
+            showLoading(false);
+
+            if (!response) {
+                const errorMessage = "I am currently unable to connect to the service. Please verify your connection or try again.";
+                addMessage(errorMessage, 'bot');
+                console.error("Failed to fetch response after retries:", lastError);
+                return;
+            }
+
+            const botText = response.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (botText) {
+                addMessage(botText, 'bot');
+                conversationHistory.push({ role: "model", parts: [{ text: botText }] });
+            } else {
+                addMessage("An unexpected system error occurred during processing. I apologize for the inconvenience.", 'bot');
+                console.error("Received unexpected API response structure or no text content:", response);
+            }
+        }
+        
+        // --- Event Listeners ---
+        sendButton.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); 
+                sendMessage();
+            }
+        });
+
+    </script>
+</body>
+</html>
